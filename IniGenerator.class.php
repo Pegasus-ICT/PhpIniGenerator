@@ -84,6 +84,14 @@ namespace PegasusICT\PhpHelpers {
             ]
         ];
 
+        private static function _init(){
+            // Initialize Logs Array if necessary
+            if(empty(self::$_logs)) {
+                foreach(array_keys(self::$_subjects) as $subject) {
+                    self::$_logs[$subject] = '';
+                }
+            }
+        }
         /**
          * @param string     $name
          * @param array|null $arguments
@@ -91,13 +99,7 @@ namespace PegasusICT\PhpHelpers {
          * @return void|string
          */
         public static function __callStatic(string $name, ?array $arguments) {
-// Initialize Logs Array if necessary
-            if(empty(self::$_logs)) {
-                foreach(array_keys(self::$_subjects) as $subject) {
-                    self::$_logs[$subject] = '';
-                }
-            }
-
+            self::_init();
 // message to log(s)
             if(in_array($name, self::$_levels, false)) {
                 self::_log($name, $arguments[0] ?? "unknown function", $arguments[1] ?? "");
@@ -332,21 +334,9 @@ namespace PegasusICT\PhpHelpers {
          * @return array
          */
         public static function ini2array(string $ini, $isFile = false): array {
-            IniLog::debug(__FUNCTION__);
-            if($isFile) {
-                return self::_expandArray(self::_iniFile2array($ini));
-            }
-            return self::_expandArray(self::_iniString2array($ini));
-        }
-
-        private static function _iniString2array(string $iniString): array {
-            IniLog::debug(__FUNCTION__);
-            return parse_ini_string($iniString, true, INI_SCANNER_TYPED);
-        }
-
-        private static function _iniFile2array(string $iniFile): array {
-            IniLog::debug(__FUNCTION__);
-            return parse_ini_file($iniFile, true, INI_SCANNER_TYPED);
+            IniLog::debug(__FUNCTION__, "Parsing a ".($isFile?"file":"string").".");
+            if($isFile) { return self::_expandArray(parse_ini_file($ini, true, INI_SCANNER_TYPED)); }
+            return self::_expandArray(parse_ini_string($ini, true, INI_SCANNER_TYPED));
         }
 
         /**
@@ -357,10 +347,9 @@ namespace PegasusICT\PhpHelpers {
         public static function generateIniFile($configData = [], $cfgFile = "", $configDir = "cfg", $fileHeader = null,
                                                $timestamp = true): void {
             IniLog::debug(__FUNCTION__);
-            Tools::checkDir($configDir);
-
+            //Tools::checkDir($configDir);
             file_put_contents($configDir . $cfgFile, ($fileHeader ? : "# Config file generated at ") .
-                                                     ($timestamp ? Tools::uDate("Y-m-d H:i:s.u T") : '') . "\n" .
+                                                     ($timestamp ? MyTimestamp::timestamp() : '') . "\n" .
                                                      self::array2ini($configData));
         }
     }
@@ -387,11 +376,9 @@ namespace {
         'log_line'  => 'timestamp [level] class->function(): message',
         'timestamp' => 'H:i:s,u'
     ];
-
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     $iniString = PegasusICT\PhpHelpers\IniGenerator::array2ini($cfgData);
-    print(PegasusICT\PhpHelpers\IniGenerator::ini2array($iniString) == $cfgData)?"success":"fail";// only works if you leave out the comment lines, need to work on that...
-
-    echo "\n";
-    echo "\n";
-//    PegasusICT\PhpHelpers\IniLog::printAll();
+    echo (PegasusICT\PhpHelpers\IniGenerator::ini2array($iniString) == $cfgData) ? "success" :"fail";
+// only works if you leave out the comment lines, need to work on that...
+    // TODO: parse iniString/File comment lines into ini2array, sort arrays before comparing is necessary
 }
