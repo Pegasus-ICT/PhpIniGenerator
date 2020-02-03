@@ -17,25 +17,35 @@ namespace {
 }
 
 namespace PegasusICT\PhpHelpers {
-    use function array_key_exists, in_array, gettype;
 
-    trait MyTimestamp {
+    use function array_key_exists;
+    use function gettype;
+    use function in_array;
+
+    /**
+     * Trait MyTimestamp
+     * @package PegasusICT\PhpHelpers
+     */
+    trait MyTimestamp
+    {
         /**
-         * @param string|null $format
-         * @param float|null  $microtime
+         * @param string $format
+         * @param float $microTime
          *
          * @return false|string
          */
-        static function timestamp(string $format = null, float $microtime = null) {
-            $microtime = $microtime ?? microtime(true);
-            $format    = $format ?? "Y-m-d H:i:s,u T";
+        static function timestamp(string $format = null, float $microTime = null): string
+        {
+            $microTime = $microTime ?? microtime(true);
+            $format = $format ?? "Y-m-d H:i:s,u T";
 
-            $timestamp    = (int)floor($microtime);
-            $milliseconds = round(($microtime - $timestamp) * 1000000);
+            $timestamp = (int)floor($microTime);
+            $milliseconds = round(($microTime - $timestamp) * 1000000);
 
             return date(preg_replace('`(?<!\\\\)u`', $milliseconds, $format), $timestamp);
         }
     }
+
     /**
      * Trait IniLog
      *
@@ -92,42 +102,41 @@ namespace PegasusICT\PhpHelpers {
                 }
             }
         }
+
         /**
-         * @param string     $name
+         * @param string $name
          * @param array|null $arguments
          *
          * @return void|string
          */
-        public static function __callStatic(string $name, ?array $arguments) {
+        public static function __callStatic(string $name, ?array $arguments)
+        {
             self::_init();
 // message to log(s)
-            if(in_array($name, self::$_levels, false)) {
+            if (in_array($name, self::$_levels, false)) {
                 self::_log($name, $arguments[0] ?? "unknown function", $arguments[1] ?? "");
             } // set maximum log level
-            elseif($name === 'setLevel') {
+            elseif ($name === 'setLevel') {
                 self::$_level = in_array($arguments[1], self::$_levels, false) ? $arguments[1] : "debug";
-            } // print or return log messages
-            else {
-                $actions = ['print', 'return'];
-                foreach($actions as $action) {
-                    $length = strlen($action);
-                    if(strncmp($name, $action, $length) === 0) {
-                        $category = substr($name, $length);
-                        if( ! array_key_exists($category, self::$_logs)) {
-                            $category = 'All';
-                        }
-                        if( ! empty(self::$_logs[$category])) {
-                            $result = self::$_logs[$category];
-                        } else {
-                            $result = "Nothing to report.\n";
-                        }
+            }
+// print or return log messages
 
-                        if($action === "print") {
-                            print $result;
-                        } else {
-                            return $result;
-                        }
+            $actions = ['print', 'return'];
+            foreach ($actions as $action) {
+                $length = strlen($action);
+                if (strncmp($name, $action, $length) === 0) {
+                    $category = substr($name, $length);
+                    if (!array_key_exists($category, self::$_logs)) {
+                        $category = 'All';
                     }
+                    if (!empty(self::$_logs[$category])) {
+                        $result = self::$_logs[$category];
+                    } else {
+                        $result = "Nothing to report.\n";
+                    }
+
+                    if ($action === "return") return $result;
+                    print $result;
                 }
             }
         }
@@ -145,49 +154,51 @@ namespace PegasusICT\PhpHelpers {
                 $levelIndex   = $levelIndexes[$level];
                 $maxLevel     = $levelIndexes[self::$_level];
                 if($levelIndex >= $min && $levelIndex <= $max && $levelIndex <= $maxLevel) {
-                    self::$_logs[$subject] .= MyTimestamp::timestamp("H:i:s,u") . " [" . strtoupper($level) .
-                                              "] $function(): $line\n";
+                    self::$_logs[$subject] .=
+                        MyTimestamp::timestamp("H:i:s,u") . " [" . strtoupper($level) . "] $function(): $line\n";
                 }
             }
         }
     }
+
     /**
      * Class IniGenerator
      *
      * @package PegasusICT\PhpHelpers
      */
-    class IniGenerator {
+    class IniGenerator
+    {
         private static $_level = 0;
 
-        public static function array2ini(array $array = [], string $section = null) {
+        /**
+         * @param array $array
+         * @param string|null $section
+         *
+         * @return string
+         */
+        public static function array2ini(array $array = [], ?string $section = null)
+        {
             IniLog::debug(__FUNCTION__, "Level: " . self::$_level);
             $result = '';
-            if(empty($array)) {
-                IniLog::notice(__FUNCTION__, "array is empty");
-            } else {
+            if (!empty($array)) {
                 uasort($array, __CLASS__ . '::_sortValueBeforeSubArray');
                 self::$_level++;
-                foreach($array as $key => $value) {
-                    if(strncmp($key, ';', 1) === 0) {
+                foreach ($array as $key => $value) {
+                    if (strncmp($key, ';', 1) === 0) {
                         IniLog::debug(__FUNCTION__, "inserting comment line");
                         $result .= "; " . preg_replace("/[@]{3}/", date("Y-m-d H:i:s T"), $value) . "\n";
                     } else {
-                        if(is_array($value)) {
-                            if(self::$_level == 0) {
-                                if(null !== $section || $key === $section) {
-                                    $result .= "[" . $key . "]\n";
-                                }
+                        if (is_array($value)) {
+                            if (self::$_level == 0) {
+                                if (null !== $section || $key === $section) $result .= "[" . $key . "]\n";
                                 $result .= self::_processSecondaryArray($key, $value);
-                            } elseif(self::$_level == 3) {
-                                if(null !== $section) {
-                                    $key = $section . "[" . $key . "]";
-                                }
+                            } elseif (self::$_level == 3) {
+                                if (null !== $section) $key = $section . "[" . $key . "]";
                                 $result .= $key . " = \"" . implode(DELIMITER, $value) . "\"\n";
-                            } else {
-                                $result .= self::_processSubArray($key, $value, $section);
                             }
+                            $result .= self::_processSubArray($key, $value, $section);
                         } else {
-                            switch(gettype($value)) {
+                            switch (gettype($value)) {
                                 case 'boolean':
                                     $result .= "$key = " . ($value ? 'true' : 'false') . "\n";
                                     break;
@@ -207,6 +218,8 @@ namespace PegasusICT\PhpHelpers {
                         }
                     }
                 }
+            } else {
+                IniLog::notice(__FUNCTION__, "array is empty");
             }
             return $result;
         }
@@ -216,25 +229,17 @@ namespace PegasusICT\PhpHelpers {
             $result     = '';
             $testResult = self::_testArray($array);
             if($testResult === ARRAY_IS_ASSOC || $testResult === ARRAY_IS_NUM) {
-                IniLog::debug(__FUNCTION__,
-                              "$label = " . ($testResult == ARRAY_IS_ASSOC) ? "associative" : "numerical");
-
+                IniLog::debug(__FUNCTION__, "$label = " . ($testResult == ARRAY_IS_ASSOC) ? "associative" : "numerical");
                 foreach($array as $subKey => $subValue) {
-                    if(is_array($subValue)) {
-                        $result .= self::_processSecondaryArray($label . "[" . $subKey . "]", $subValue);
-                    } else {
-                        $result .= $label . "[" . $subKey . "] = $subValue\n";
-                    }
+                    if (is_array($subValue)) $result .= self::_processSecondaryArray($label . "[" . $subKey . "]", $subValue);
+                    else $result .= $label . "[" . $subKey . "] = $subValue\n";
                 }
             } else {
                 IniLog::debug(__FUNCTION__, "$label = sequential");
 
                 foreach($array as $subKey => $subValue) {
-                    if(is_array($subValue)) {
-                        $result .= self::_processSecondaryArray($label . "[]", $subValue);
-                    } else {
-                        $result .= $label . "[] = $subValue\n";
-                    }
+                    if (is_array($subValue)) $result .= self::_processSecondaryArray($label . "[]", $subValue);
+                    else $result .= $label . "[] = $subValue\n";
                 }
             }
             self::$_level--;
@@ -242,26 +247,23 @@ namespace PegasusICT\PhpHelpers {
         }
 
         /**
-         * @param string      $key
-         * @param array       $value
+         * @param string $key
+         * @param array $value
          * @param string|null $section
          *
          * @return string
          */
-        private static function _processSubArray(string $key = '', array $value = [], string $section = null) {
+        private static function _processSubArray(string $key = '', array $value = [], string $section = null)
+        {
             IniLog::debug(__FUNCTION__,
-                          "key = $key, value has " . count($value) . " elements, section = " . ($section ? : "null") .
-                          " level = " . self::$_level);
-            $result = "";
-            if(self::$_level === 1) {
-                if(($section === null || $key === $section) && ! empty($value)) {
-                    $result .= "\n[$key]\n" . self::array2ini($value, null);
-                }
-            } else {
-                $result .= /*"$key = ". */
-                    self::array2ini($value, $key);
-            }
-            return $result;
+                "key = $key, value has " . count($value) . " elements, section = " . ($section ?: "null") .
+                " level = " . self::$_level);
+
+            if (self::$_level !== 1) return self::array2ini($value, $key);
+
+            if (($section === null || $key === $section) && !empty($value))
+                return "\n[$key]\n" . self::array2ini($value, null);
+            return '';
         }
 
         /**
@@ -270,39 +272,38 @@ namespace PegasusICT\PhpHelpers {
          *
          * @return int
          */
-        private static function _testArray(array $array, int $test = ARRAY_IS) {
+        private static function _testArray(array $array, int $test = ARRAY_IS)
+        {
             IniLog::debug(__FUNCTION__, "test = " . ARRAY_RESULTS[$test]);
-            if(array() === $array) {
+            $result = ARRAY_IS_NUM;
+            if (array() === $array) {
                 $result = ARRAY_IS_EMPTY;
-            } elseif(array_keys($array) === range(0, count($array) - 1)) {
+            } elseif (array_keys($array) === range(0, count($array) - 1)) {
                 $result = ARRAY_IS_SEQ;
-            } elseif(count(array_filter(array_keys($array), 'is_string')) > 0) {
+            } elseif (count(array_filter(array_keys($array), 'is_string')) > 0) {
                 $result = ARRAY_IS_ASSOC;
-            } else {
-                $result = ARRAY_IS_NUM;
             }
             IniLog::debug(__FUNCTION__, "array = " . ARRAY_RESULTS[$result]);
 
-            if($test === ARRAY_IS) {
-                return $result;
-            }
+            if ($test === ARRAY_IS) return $result;
+
             return ($test | $result);
         }
 
         /**
-         * @param mixed $a
-         * @param mixed $b
+         * @param mixed $varA
+         * @param mixed $varB
          *
          * @return int
+         * @noinspection PhpUnused
          */
-        private static function _sortValueBeforeSubArray($a, $b) {
+        public static function sortValueBeforeSubArray($varA, $varB)
+        {
             IniLog::debug(__FUNCTION__);
-            $aa = is_array($a);
-            $bb = is_array($b);
+            $aa = is_array($varA);
+            $bb = is_array($varB);
 
-            if($aa == $bb) {
-                return 0;
-            }
+            if ($aa == $bb) return 0;
             return ($aa < $bb) ? -1 : 1;
         }
 
@@ -314,40 +315,45 @@ namespace PegasusICT\PhpHelpers {
         private static function _expandArray($array) {
             $result = [];
             foreach($array as $key => $value) {
-                if(is_array($value)) {
+                if (is_array($value)) {
                     $result[$key] = self::_expandArray($value);
-                } else {
-                    if(is_string($value) && strpos($value, DELIMITER) !== false) {
-                        $result[$key] = explode(DELIMITER, $value) ? : $value;
-                        //     print "exploded array: ". explode(DELIMITER, $value);
-                    } else {
-                        $result[$key] = $value;
-                    }
+                } elseif (is_string($value) && strpos($value, DELIMITER) !== false) {
+                    $result[$key] = explode(DELIMITER, $value) ?: $value;
+
+                    continue;
                 }
+                $result[$key] = $value;
             }
             return $result;
         }
 
         /**
-         * @param string $iniString
+         * @param string $ini
+         * @param bool $isFile
          *
          * @return array
          */
-        public static function ini2array(string $ini, $isFile = false): array {
-            IniLog::debug(__FUNCTION__, "Parsing a ".($isFile?"file":"string").".");
-            if($isFile) { return self::_expandArray(parse_ini_file($ini, true, INI_SCANNER_TYPED)); }
+        public static function ini2array(string $ini, $isFile = false): array
+        {
+            IniLog::debug(__FUNCTION__, "Parsing a " . ($isFile ? "file" : "string") . ".");
+
+            if ($isFile)
+                return self::_expandArray(parse_ini_file($ini, true, INI_SCANNER_TYPED));
+
             return self::_expandArray(parse_ini_string($ini, true, INI_SCANNER_TYPED));
         }
 
         /**
-         * @param array  $configData
+         * @param array $configData
          * @param string $cfgFile
          * @param string $configDir
+         * @param null $fileHeader
+         * @param bool $timestamp
          */
         public static function generateIniFile($configData = [], $cfgFile = "", $configDir = "cfg", $fileHeader = null,
                                                $timestamp = true): void {
             IniLog::debug(__FUNCTION__);
-            //Tools::checkDir($configDir);
+            //check: Tools::checkDir($configDir);
             file_put_contents($configDir . $cfgFile, ($fileHeader ? : "# Config file generated at ") .
                                                      ($timestamp ? MyTimestamp::timestamp() : '') . "\n" .
                                                      self::array2ini($configData));
