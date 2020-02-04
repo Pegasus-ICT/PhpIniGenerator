@@ -4,7 +4,7 @@
  *
  * PHP version 7.2+
  *
- * @category  configuration generator
+ * @category  Configuration_Generator
  * @package   PhpIniGenerator
  * @author    Mattijs Snepvangers <pegasus.ict@gmail.com>
  * @copyright 2019-2020 Pegasus ICT Dienstverlening
@@ -33,7 +33,7 @@ $cfgData = [
     ];
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-include "phpinigenerator.class.php";
+require_once __DIR__."/phpinigenerator.class.php";
     $iniString = PegasusICT\PhpIniGenerator\IniGenerator::array2ini($cfgData);
     echo (PegasusICT\PhpIniGenerator\IniGenerator::ini2array($iniString) == $cfgData) ? "success" : "fail";// only works if you leave out the comment lines, need to work on that...
 

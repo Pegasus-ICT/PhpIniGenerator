@@ -4,7 +4,7 @@
  *
  * PHP version 7.2+
  *
- * @category  configuration generator
+ * @category  Configuration_Generator
  * @package   PhpIniGenerator
  * @author    Mattijs Snepvangers <pegasus.ict@gmail.com>
  * @copyright 2019-2020 Pegasus ICT Dienstverlening
@@ -25,8 +25,8 @@ namespace {
         ARRAY_IS       => "what?"
     ];
 
-    require_once "timestamp.trait.php";
-    require_once "inilog.trait.php";
+    require_once __DIR__ . "/timestamp.trait.php";
+    require_once __DIR__ . "/inilog.trait.php";
 }
 namespace PegasusICT\PhpIniGenerator {
 
@@ -51,7 +51,7 @@ namespace PegasusICT\PhpIniGenerator {
             IniLog::debug(__FUNCTION__, "Level: " . self::$level);
             $result = '';
             if( ! empty($array)) {
-                uasort($array, __CLASS__ . '::_sortValueBeforeSubArray');
+                uasort($array, "PegasusICT\\PhpIniGenerator\\::sortValueBeforeSubArray");
                 self::$level++;
                 foreach($array as $key => $value) {
                     if(strncmp($key, ';', 1) === 0) {
