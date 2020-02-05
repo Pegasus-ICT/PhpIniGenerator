@@ -2,13 +2,14 @@
 /**
  * PHP Ini Generator
  *
- * PHP version 7.2+
+ * PHP version ^7.2
  *
  * @category  Configuration_Generator
  * @package   PhpIniGenerator
  * @author    Mattijs Snepvangers <pegasus.ict@gmail.com>
  * @copyright 2019-2020 Pegasus ICT Dienstverlening
  * @license   MIT License
+ * @version   0.1.2-alpha
  * @link      https://github.com/Pegasus-ICT/PhpIniGenerator/
  */
 namespace {
@@ -240,8 +241,8 @@ namespace PegasusICT\PhpIniGenerator {
             IniLog::debug(__FUNCTION__);
             //check: Tools::checkDir($configDir);
             file_put_contents($configDir . $cfgFile, ($fileHeader ? : "; Config file generated at ") .
-                                                     ($timestamp ? Timestamp::timestamp() : '') . "\n" .
-                                                     self::array2ini($configData));
+                                                   ($timestamp ? Timestamp::timestamp() : '') . "\n" .
+                                                   self::array2ini($configData));
         }
     }
 }
