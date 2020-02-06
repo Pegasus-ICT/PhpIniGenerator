@@ -9,29 +9,14 @@
  * @author    Mattijs Snepvangers <pegasus.ict@gmail.com>
  * @copyright 2019-2020 Pegasus ICT Dienstverlening
  * @license   MIT License
- * @version   0.1.2-alpha
  * @link      https://github.com/Pegasus-ICT/PhpIniGenerator/
  */
-namespace {
-    const ARRAY_IS       = 0b0000;
-    const ARRAY_IS_SEQ   = 0b0001;
-    const ARRAY_IS_ASSOC = 0b0010;
-    const ARRAY_IS_NUM   = 0b0100;
-    const ARRAY_IS_EMPTY = 0b1000;
-    const ARRAY_RESULTS  = [
-        ARRAY_IS_SEQ   => "sequential",
-        ARRAY_IS_NUM   => "numerical",
-        ARRAY_IS_ASSOC => "associative",
-        ARRAY_IS_EMPTY => "empty",
-        ARRAY_IS       => "what?"
-    ];
+namespace PegasusICT\PhpIniGenerator {
+    use function gettype;
 
     require_once __DIR__ . "/timestamp.trait.php";
-    require_once __DIR__ . "/inilog.trait.php";
-}
-namespace PegasusICT\PhpIniGenerator {
-
-    use function gettype;
+    require_once __DIR__ . "/inilogger.class.php";
+    require_once __DIR__ . "/iniconstants.php";
 
     /**
      * Class IniGenerator
@@ -39,21 +24,47 @@ namespace PegasusICT\PhpIniGenerator {
      * @package PegasusICT\PhpIniGenerator
      */
     class IniGenerator {
-        private static $level     = 0;
-        private static $delimiter = "#";
+        private $level = 0;
+        private $delimiter    = "#";
+        private $logger;
 
         /**
-         * @param array       $array
-         * @param string|null $section
-         *
+         * IniGenerator constructor.
+         */
+        public function __construct() {
+            $this->logger = new IniLogger();
+            return $this;
+        }
+
+
+        /**
+         * @param string $delimiter
+         */
+        public function setDelimiter( string $delimiter ): IniGenerator {
+            $this->delimiter = $delimiter;
+            return $this;
+        }
+
+        /**
          * @return string
          */
-        public static function array2ini(array $array = [], ?string $section = null) {
-            IniLog::debug(__FUNCTION__, "Level: " . self::$level);
+        public function getDelimiter(): string {
+            return $this->delimiter;
+        }
+
+
+        /**
+         * @param array       $array        array with configuration data
+         * @param string|null $section      section to include exclusively
+         *
+         * @return string                   generated ini string
+         */
+        public function array2ini(array $array = [], ?string $section = null) :IniGenerator{
+            IniLog::debug(__FUNCTION__, "Level: " . $this->level);
             $result = '';
             if( ! empty($array)) {
                 uasort($array, "PegasusICT\\PhpIniGenerator\\::sortValueBeforeSubArray");
-                self::$level++;
+                $this->level++;
                 foreach($array as $key => $value) {
                     if(strncmp($key, ';', 1) === 0) {
                         IniLog::debug(__FUNCTION__, "inserting comment line");
@@ -61,19 +72,19 @@ namespace PegasusICT\PhpIniGenerator {
                         continue;
                     }
                     if(is_array($value)) {
-                        if(self::$level == 0) {
+                        if($this->level == 0) {
                             if(null !== $section || $key === $section) {
                                 $result .= "[" . $key . "]\n";
                             }
-                            $result .= self::_processSecondaryArray($key, $value);
-                        } elseif(self::$level == 3) {
+                            $result .= $this->_processSecondaryArray($key, $value);
+                        } elseif($this->level == 3) {
                             if(null !== $section) {
                                 $key = $section . "[" . $key . "]";
                             }
-                            $result .= $key . " = \"" . implode(self::$delimiter, $value) . "\"\n";
+                            $result .= $key . " = \"" . implode($this->delimiter, $value) . "\"\n";
                             continue;
                         }
-                        $result .= self::_processSubArray($key, $value, $section);
+                        $result .= $this->_processSubArray($key, $value, $section);
                         continue;
                     }
                     switch(gettype($value)) {
@@ -101,33 +112,33 @@ namespace PegasusICT\PhpIniGenerator {
             return $result;
         }
 
-        private static function _processSecondaryArray(string $label, array $array): string {
-            IniLog::debug(__FUNCTION__, "Level: " . self::$level++);
+        private function _processSecondaryArray(string $label, array $array): string {
+            IniLog::debug(__FUNCTION__, "Level: " . $this->level++);
             $result     = '';
-            $testResult = self::_testArray($array);
+            $testResult = $this->_testArray($array);
             if($testResult === ARRAY_IS_ASSOC || $testResult === ARRAY_IS_NUM) {
                 IniLog::debug(__FUNCTION__, "$label = " . ($testResult == ARRAY_IS_ASSOC) ? "associative" : "numerical");
                 foreach($array as $subKey => $subValue) {
                     if(is_array($subValue)) {
-                        $result .= self::_processSecondaryArray($label . "[" . $subKey . "]", $subValue);
+                        $result .= $this->_processSecondaryArray($label . "[" . $subKey . "]", $subValue);
                         continue;
                     }
                     $result .= $label . "[" . $subKey . "] = $subValue\n";
                 }
-                self::$level--;
+                $this->level--;
                 return $result;
             }
             IniLog::debug(__FUNCTION__, "$label = sequential");
 
             foreach($array as $subKey => $subValue) {
                 if(is_array($subValue)) {
-                    $result .= self::_processSecondaryArray($label . "[]", $subValue);
+                    $result .= $this->_processSecondaryArray($label . "[]", $subValue);
                     continue;
                 }
                 $result .= $label . "[] = $subValue\n";
             }
 
-            self::$level--;
+            $this->level--;
             return $result;
         }
 
@@ -138,17 +149,17 @@ namespace PegasusICT\PhpIniGenerator {
          *
          * @return string
          */
-        private static function _processSubArray(string $key = '', array $value = [], string $section = null) {
+        private function _processSubArray(string $key = '', array $value = [], string $section = null) {
             IniLog::debug(__FUNCTION__,
                           "key = $key, value has " . count($value) . " elements, section = " . ($section ? : "null") .
-                          " level = " . self::$level);
+                          " level = " . $this->level);
 
-            if(self::$level !== 1) {
-                return self::array2ini($value, $key);
+            if($this->level !== 1) {
+                return $this->array2ini($value, $key);
             }
 
             if(($section === null || $key === $section) && ! empty($value)) {
-                return "\n[$key]\n" . self::array2ini($value, null);
+                return "\n[$key]\n" . $this->array2ini($value, null);
             }
             return '';
         }
@@ -159,7 +170,7 @@ namespace PegasusICT\PhpIniGenerator {
          *
          * @return int
          */
-        private static function _testArray(array $array, int $test = ARRAY_IS) {
+        private function _testArray(array $array, int $test = ARRAY_IS) {
             IniLog::debug(__FUNCTION__, "test = " . ARRAY_RESULTS[$test]);
             $result = ARRAY_IS_NUM;
             if(array() === $array) {
@@ -185,7 +196,7 @@ namespace PegasusICT\PhpIniGenerator {
          * @return int
          * @noinspection PhpUnused
          */
-        public static function sortValueBeforeSubArray($varA, $varB) {
+        public function sortValueBeforeSubArray($varA, $varB) {
             $is_arrayA = is_array($varA);
             $is_arrayB = is_array($varB);
 
@@ -198,13 +209,13 @@ namespace PegasusICT\PhpIniGenerator {
          *
          * @return array
          */
-        private static function _expandArray($array) {
+        private function _expandArray($array) {
             $result = [];
             foreach($array as $key => $value) {
                 if(is_array($value)) {
-                    $result[$key] = self::_expandArray($value);
-                } elseif(is_string($value) && strpos($value, self::$delimiter) !== false) {
-                    $result[$key] = explode(self::$delimiter, $value) ? : $value;
+                    $result[$key] = $this->_expandArray($value);
+                } elseif(is_string($value) && strpos($value, $this->delimiter) !== false) {
+                    $result[$key] = explode($this->delimiter, $value) ? : $value;
 
                     continue;
                 }
@@ -219,14 +230,14 @@ namespace PegasusICT\PhpIniGenerator {
          *
          * @return array
          */
-        public static function ini2array(string $ini, $isFile = false): array {
+        public function ini2array(string $ini, $isFile = false): array {
             IniLog::debug(__FUNCTION__, "Parsing a " . ($isFile ? "file" : "string") . ".");
 
             if($isFile) {
-                return self::_expandArray(parse_ini_file($ini, true, INI_SCANNER_TYPED));
+                return $this->_expandArray(parse_ini_file($ini, true, INI_SCANNER_TYPED));
             }
 
-            return self::_expandArray(parse_ini_string($ini, true, INI_SCANNER_TYPED));
+            return $this->_expandArray(parse_ini_string($ini, true, INI_SCANNER_TYPED));
         }
 
         /**
@@ -236,13 +247,28 @@ namespace PegasusICT\PhpIniGenerator {
          * @param null   $fileHeader
          * @param bool   $timestamp
          */
-        public static function generateIniFile($configData = [], $cfgFile = "", $configDir = "cfg", $fileHeader = null,
+        public function generateIniFile($configData = [], $cfgFile = "", $configDir = "cfg", $fileHeader = null,
                                                $timestamp = true): void {
             IniLog::debug(__FUNCTION__);
             //check: Tools::checkDir($configDir);
             file_put_contents($configDir . $cfgFile, ($fileHeader ? : "; Config file generated at ") .
                                                    ($timestamp ? Timestamp::timestamp() : '') . "\n" .
-                                                   self::array2ini($configData));
+                                                   $this->array2ini($configData));
         }
+    }
+    /**
+     * @param string $format
+     * @param float  $microTime
+     *
+     * @return false|string
+     */
+    private function timestamp( string $format = NULL, float $microTime = NULL ): string {
+        $microTime = $microTime ?? microtime( TRUE );
+        $format    = $format ?? "Y-m-d H:i:s,u T";
+
+        $timestamp    = (int)floor( $microTime );
+        $milliseconds = round( ( $microTime - $timestamp ) * 1000000 );
+
+        return date( preg_replace( '`(?<!\\\\)u`', $milliseconds, $format ), $timestamp );
     }
 }
